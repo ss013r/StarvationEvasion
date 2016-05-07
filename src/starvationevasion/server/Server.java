@@ -12,7 +12,6 @@ import starvationevasion.server.io.HttpParse;
 import starvationevasion.server.io.NetworkException;
 import starvationevasion.server.io.ReadStrategy;
 import starvationevasion.server.io.WriteStrategy;
-import starvationevasion.server.io.formatters.Format;
 import starvationevasion.server.io.strategies.*;
 import starvationevasion.server.model.*;
 import starvationevasion.server.model.db.Transaction;
@@ -74,7 +73,7 @@ public class Server
   // bool that listen for connections is looping over
   private boolean isWaiting = true;
 
-  public static int TOTAL_HUMAN_PLAYERS = 0;
+  public static int TOTAL_HUMAN_PLAYERS = 1;
   public static int TOTAL_AI_PLAYERS = 2;
   public static int TOTAL_PLAYERS = TOTAL_HUMAN_PLAYERS + TOTAL_AI_PLAYERS;
   public static final long TIMEOUT = 3; // seconds
@@ -988,7 +987,7 @@ public class Server
                                                        "-classpath",
                                                        "./dist:./dist/libs/*",
                                                        "starvationevasion/ai/AI",
-                                                       "foodgame.cs.unm.edu", "5555"});
+                                                       "localhost", "5555"});
     if (p != null)
     {
       processes.add(p);

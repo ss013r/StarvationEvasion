@@ -1,5 +1,10 @@
 package starvationevasion.common.gamecards;
 
+import java.util.EnumSet;
+
+import starvationevasion.server.model.State;
+
+//Not functional, and not in EnumPolicy. Uncomment it there to re-enable this card.
 /**
  * Title: {@value #TITLE}<br><br>
  * Game Text: {@value #TEXT}<br><br>
@@ -13,12 +18,14 @@ package starvationevasion.common.gamecards;
 
 public class Policy_SearchforAnswers extends GameCard
 {
-  public static String TITLE = "Search for Answers";
+  public static final String TITLE = "Search for Answers";
   
-  public static String TEXT = 
-      "The owner of this card pays 50 million dollars " +
-      "and may search their deck for a card and " +
-      "add that card to their hand.";
+  public static final String TEXT = 
+      "Pay $50 million. Search your deck for a card and " +
+      "add that card to your hand. Your deck is then shuffled.";
+  
+  public static final EnumSet<State> PLAY_STATES = //when the card can be used
+      EnumSet.of(State.DRAFTING);
   
   /**
    * {@inheritDoc}
@@ -31,6 +38,21 @@ public class Policy_SearchforAnswers extends GameCard
   */
   @Override
   public String getGameText() {return TEXT;}
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int actionPointCost() {return 3;}
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EnumSet<State> getUsableStates()
+  {
+    return PLAY_STATES;
+  }
   
   //TODO Have some Collection to hold each region's deck, that can be iterated over, 
   //and have an accessor method here

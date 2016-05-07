@@ -1,6 +1,8 @@
 package starvationevasion.common.gamecards;
 
-import starvationevasion.common.EnumRegion;
+import java.util.EnumSet;
+
+import starvationevasion.server.model.State;
 
 /**
  * Title: {@value #TITLE}<br><br>
@@ -25,6 +27,9 @@ public class Policy_Fundraiser extends GameCard
   public static final String FLAVOR_TEXT_SOURCE =
       "-Donald Trump";
   
+  public static final EnumSet<State> PLAY_STATES = //when the card can be used
+      EnumSet.of(State.DRAFTING);
+  
   /**
    * {@inheritDoc}
    */
@@ -48,4 +53,13 @@ public class Policy_Fundraiser extends GameCard
    */
   @Override
   public String getFlavorTextSource(){ return FLAVOR_TEXT_SOURCE;}
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EnumSet<State> getUsableStates()
+  {
+    return PLAY_STATES;
+  }
 }

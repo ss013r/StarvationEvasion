@@ -2,14 +2,15 @@
 package starvationevasion.common.gamecards;
 
 import starvationevasion.common.EnumFood;
+import starvationevasion.server.model.State;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 
-//TODO: Convert to a research-type card
 /**
  * Title: {@value #TITLE}<br><br>
  * Game Text: {@value #TEXT}<br><br>
+ * Flavor Text: <i>{@value #FLAVOR_TEXT}</i><br><br>
  *
  * Draft Affects: When drafting this policy, player selects an
  * amount X to be paid by EACH player who approves the policy. <br><br>
@@ -29,19 +30,17 @@ public class Policy_ResearchInsectResistanceGrain extends GameCard
 {
 
   public static final String TITLE =
-     "Research GMO Insect Resistance for Grains";
+       "Research GMO Insect Resistance for Grains";
 
   public static final String TEXT =
-    "Each participating region spends X million dollars to fund GMO seed research " +
-    "for increasing insect resistance of a grain crop.";
+      "Each participating region spends X million dollars to fund GMO seed research " +
+      "for increasing insect resistance of a grain crop.";
   
-  public static final EnumSet<EnumGameState> PLAY_STATES = //when the card can be used
-      EnumSet.of(EnumGameState.PLANNING_STATE);
+  public static final String FLAVOR_TEXT =
+      "Extraordinary technology at an extraordinary price.";
   
-  public Policy_ResearchInsectResistanceGrain()
-  {
-    this.setUsableStates(PLAY_STATES);
-  }
+  public static final EnumSet<State> PLAY_STATES = //when the card can be used
+      EnumSet.of(State.DRAFTING);
 
   /**
    * The number of votes required for this policy.  A value of 1 means that
@@ -74,7 +73,27 @@ public class Policy_ResearchInsectResistanceGrain extends GameCard
   */
   @Override
   public String getGameText(){ return TEXT;}
-
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String getFlavorText() {return FLAVOR_TEXT;}
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int actionPointCost() {return 2;}
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EnumSet<State> getUsableStates()
+  {
+    return PLAY_STATES;
+  }
 
   /**
    * {@inheritDoc}

@@ -4,6 +4,7 @@ import com.oracle.javafx.jmx.json.JSONDocument;
 import starvationevasion.common.EnumFood;
 import starvationevasion.common.EnumRegion;
 import starvationevasion.server.model.Sendable;
+import starvationevasion.server.model.State;
 import starvationevasion.server.model.Type;
 
 import java.util.ArrayList;
@@ -169,25 +170,41 @@ public abstract class GameCard implements Sendable
         myCard = new Policy_MyPlatePromotionCampaign();
         break;
       case Policy_DiverttheFunds:
-        myCard = new Policy_DiverttheFunds();
+        myCard = new Policy_DivertFunds();
         break;
-      case Policy_Filibuster:
-        myCard = new Policy_Filibuster();
-        break;
+      //case Policy_Filibuster:
+      //  myCard = new Policy_Filibuster();
+      //  break;
       case Policy_Fundraiser:
         myCard = new Policy_Fundraiser();
         break;
-      case Policy_SharetheKnowledge:
-        myCard = new Policy_SharetheKnowledge();
-        break;
-      case Policy_Redraft:
-    	myCard = new Policy_Redraft();
-      case Policy_SearchforAnswers:
-    	myCard = new Policy_SearchforAnswers();
+      //case Policy_SharetheKnowledge:
+      //  myCard = new Policy_SharedKnowledge();
+      //  break;
+      //case Policy_Redraft:
+      //	myCard = new Policy_Redraft();
+      //	break;
+      //case Policy_SearchforAnswers:
+      //	myCard = new Policy_SearchforAnswers();
+      //	break;
       case Policy_SpecialInterests:
-    	myCard = new Policy_SpecialInterests();
-    default:
-      break;
+      	myCard = new Policy_SpecialInterests();
+      	break;
+      case Policy_FoodReliefCentralAsia:
+        myCard = new Policy_FoodReliefCentralAsia();
+        break;
+      case Policy_FoodReliefMiddleAmerica:
+        myCard = new Policy_FoodReliefMiddleAmerica();
+        break;
+      case Policy_FoodReliefOceania:
+        myCard = new Policy_FoodReliefOceania();
+        break;
+      case Policy_FoodReliefSouthAsia:
+        myCard = new Policy_FoodReliefSouthAsia();
+        break;
+      case Policy_FoodReliefSubSaharan:
+        myCard = new Policy_FoodReliefSubSaharan();
+        break;
     }
 
     if (myCard != null)
@@ -241,29 +258,41 @@ public abstract class GameCard implements Sendable
    */
   public int votesRequired() {return 0;}
   
-  //=========================================================================================
+//=========================================================================================
   /**
    * In the abstract GameCard class, this method returns the default
    * Action Point cost of a Policy Card, 1.  If a class that extends GameCard costs
    * more than one Action Point to use, it will override this method.
    */
-  public int actionPointCost() {return 1;}
+
+  public int actionPointCost() 
+  {
+    return 1;
+  }
   
-  //=========================================================================================
+  // =========================================================================================
   /**
    * In the abstract GameCard class, this method returns the default
    * flavor text of a card.  Initially, this String is null, but any card that will have 
-   * flavor text will override this method to return the selected String of text.
+   * flavor text will override this method to return the selected String of text. <p>
+   * Note: Not every card is guaranteed to have flavor text, so this may return null.
    */
-  public String getFlavorText() {return null;}
+  public String getFlavorText() 
+  {
+    return null;
+  }
   
-//=========================================================================================
+  // =========================================================================================
   /**
    * In the abstract GameCard class, this method returns the default
    * source of where the flavor text is. Often, the flavor text is a quote, so the source 
-   * will look something like "-Ronald Reagan".
+   * will look something like "-Ronald Reagan". <p>
+   * Note: Not every card's flavor text will have a source, so this may return null.
    */
-  public String getFlavorTextSource() {return null;}
+  public String getFlavorTextSource() 
+  {
+    return null;
+  }
 
   //=========================================================================================
   /**
@@ -324,14 +353,16 @@ public abstract class GameCard implements Sendable
   
   //=========================================================================================
   /**
-   * @param the game states in which it is valid to use this card.
+   * @return the game states in which it is valid to use this card.
+   * @see starvationevasion.server.model.State
    */
-  public EnumSet<EnumGameState> getUsableStates() {return usableStates;}
+  public EnumSet<State> getUsableStates() {return null;}
 
   
   
   //=========================================================================================
   /**
+   * @deprecated JUST OVERRIDE getUsableStates() INSTEAD 
    * @param states ArrayList of states of when this card can be played.
    */
   public void setUsableStates(EnumSet<EnumGameState> states) {states = usableStates;}
@@ -381,26 +412,30 @@ public abstract class GameCard implements Sendable
    * Some policy cards require a target food (crop or livestock).
    * @return targetFood.
    */
-  public EnumFood getTargetFood() {return targetFood;}
+
+  public EnumFood getTargetFood()
+  {
+    return targetFood;
+  }
   
   
-//=========================================================================================
+  // =========================================================================================
   /**
    * Some policy cards require a target card from deck, discard, or hand.
    * @param targetCard sets the targetCard.  Ignored if this policy does not use a target card.
    */
   public void setTargetCard(EnumPolicy targetCard) {this.targetCard = targetCard;}
-  
 
   //=========================================================================================
   /**
    * Some policy cards require a target card from deck, discard, or hand.
    * @return targetCard.
    */
-  public EnumPolicy getTargetCard() {return targetCard;}
-
-
-  //=========================================================================================
+  public EnumPolicy getTargetCard() 
+  {
+    return targetCard;
+  }
+  // =========================================================================================
   /**
    * Clears all enacting regions.
    */
@@ -489,20 +524,26 @@ public abstract class GameCard implements Sendable
    * @return An array of food categories valid as the target food of this policyCard.
    * Returns null if this card does not require a region.
    */
-  public EnumFood[] getValidTargetFoods() {return null;}
+
+  public EnumFood[] getValidTargetFoods() 
+  {
+    return null;
+  }
+
   
-  
-//=========================================================================================
+  // =========================================================================================
   /**
    * The default is null (no target card required).
    * @return An array of cards that are valid as the target card of this policyCard.
    * Returns null if this card does not require a target card.
    */
-  public ArrayList<EnumPolicy> getValidTargetCards() {return null;}
+  public ArrayList<EnumPolicy> getValidTargetCards() 
+  {
+    return null;
+  }
 
 
-
-  //=========================================================================================
+  // =========================================================================================
   /**
    * The default is null (variable X not required).
    * @return Gives the options of available prices/percentages that correspond to card
