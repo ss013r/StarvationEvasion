@@ -315,15 +315,15 @@ public abstract class GameCard implements Sendable
       case Policy_SpecialInterests:
       	return 1;
       case Policy_FoodReliefCentralAsia:
-        return 2;
+        return 1;
       case Policy_FoodReliefMiddleAmerica:
-        return 2;
+        return 1;
       case Policy_FoodReliefOceania:
-        return 2;
+        return 1;
       case Policy_FoodReliefSouthAsia:
-        return 2;
+        return 1;
       case Policy_FoodReliefSubSaharan:
-        return 2;
+        return 1;
 	  }
 	  //if we didn't set AP in the above switch, then there's a problem
 	  if(ap == -1) 
