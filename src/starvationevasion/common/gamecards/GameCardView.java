@@ -24,7 +24,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 
-public class GameCardViewLocal extends Application
+public class GameCardView extends Application
 {
   private double cardWidth = 370;
   private double cardHeight = 520;
