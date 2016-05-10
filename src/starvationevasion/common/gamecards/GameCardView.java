@@ -8,6 +8,7 @@ import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
+import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -47,7 +48,7 @@ public class GameCardView extends Application
       (cardWidth/9),   (cardHeight/13)  +textOctagonHeightModifier, 
       (cardWidth/9),   (cardHeight/13)
       };
-  private String color = "0xaba9db";   
+  private String color = "0xaba9db";  
 
   private Polygon topTrapezoid        = new Polygon();
   private Polygon bottomTrapezoid     = new Polygon();
@@ -59,13 +60,14 @@ public class GameCardView extends Application
   Circle pipOne, pipTwo, pipThree;
   private Text title, voteNumberText, voteCostText, rulesText, flavorText, informationText;
   
+  //TODO convert start into GameCardView(GameCard card)
   @Override
   public void start(Stage primaryStage)
   {
     cardImage.setFitWidth(cardWidth);
     cardImage.setFitHeight(cardHeight);
     cardPane = new StackPane();
-    File file = new File("assets/cardimages/Policy_CleanRiverIncentive.png");
+    File file = new File("Resources/Policy_CleanRiverIncentive.png");
     Image image = new Image(file.toURI().toString());
     cardImage.setImage(image);
     cardPane.getChildren().add(cardImage);
@@ -75,11 +77,16 @@ public class GameCardView extends Application
     updateGameCardText();
     updateTextOctagon();
     
+    
+    
     polygonPane = new AnchorPane();
     polygonPane.getChildren().addAll(
-        topLeftPentagon, topTrapezoid, topRightPentagon, middleTextOctagon,
+        topLeftPentagon, topTrapezoid, topRightPentagon,
+        middleTextOctagon,
         bottomLeftPentagon, bottomTrapezoid, bottomRightPentagon,
-        title, rulesText, flavorText, voteNumberText, voteCostText, informationText
+        title, 
+        rulesText, flavorText, 
+        voteNumberText, voteCostText, informationText
         );
     
     switch(actionPointCost)
@@ -245,8 +252,6 @@ public class GameCardView extends Application
       public void handle(MouseEvent me) 
       {
         mouseOverOctagon = true;
-        textOctagonHeightModifier = 9/13*cardHeight;
-        updateTextOctagon();
         middleTextOctagon.setStroke(Color.YELLOW);
       }
     });
@@ -255,8 +260,6 @@ public class GameCardView extends Application
       public void handle(MouseEvent me) 
       {
         mouseOverOctagon = false;
-//        textOctagonHeightModifier = 0;
-        updateTextOctagon();
         middleTextOctagon.setStroke(Color.BLACK);
       }
     });
@@ -296,13 +299,7 @@ public class GameCardView extends Application
       public void handle(MouseEvent me) 
       {
         mouseOverOctagon = true;
-      }
-    });
-    rulesText.setOnMouseExited(new EventHandler<MouseEvent>() 
-    {
-      public void handle(MouseEvent me) 
-      {
-        mouseOverOctagon = false;
+        middleTextOctagon.setStroke(Color.YELLOW);
       }
     });
     
@@ -319,13 +316,7 @@ public class GameCardView extends Application
       public void handle(MouseEvent me) 
       {
         mouseOverOctagon = true;
-      }
-    });
-    flavorText.setOnMouseExited(new EventHandler<MouseEvent>() 
-    {
-      public void handle(MouseEvent me) 
-      {
-        mouseOverOctagon = false;
+        middleTextOctagon.setStroke(Color.YELLOW);
       }
     });
     
