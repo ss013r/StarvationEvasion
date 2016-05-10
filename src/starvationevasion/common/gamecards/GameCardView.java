@@ -15,15 +15,16 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.StrokeType;
 import javafx.scene.text.Font;
-import javafx.scene.text.FontSmoothingType;
+import javafx.scene.text.FontPosture;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 
-public class GameCardView extends Application
+public class GameCardViewLocal extends Application
 {
   private double cardWidth = 370;
   private double cardHeight = 520;
@@ -31,6 +32,7 @@ public class GameCardView extends Application
   private StackPane cardPane;
   private ImageView cardImage = new ImageView();
   
+  int actionPointCost = 2;
   private boolean mouseOverOctagon = false;
   private double textOctagonHeightModifier = 0;
   private double transparency = 0.50;
@@ -54,103 +56,64 @@ public class GameCardView extends Application
   private Polygon bottomRightPentagon = new Polygon();
   private Polygon topRightPentagon    = new Polygon();
   private Polygon middleTextOctagon   = new Polygon();
-  private Text title, voteNumberText, voteCostText, rulesText, informationText;
+  Circle pipOne, pipTwo, pipThree;
+  private Text title, voteNumberText, voteCostText, rulesText, flavorText, informationText;
   
   @Override
   public void start(Stage primaryStage)
   {
-//    GameCard card = GameCard.create(null, EnumPolicy.Policy_CleanRiverIncentive);
-    
     cardImage.setFitWidth(cardWidth);
     cardImage.setFitHeight(cardHeight);
     cardPane = new StackPane();
-    File file = new File("Resources/Policy_CleanRiverIncentive.png");
+    File file = new File("assets/cardimages/Policy_CleanRiverIncentive.png");
     Image image = new Image(file.toURI().toString());
     cardImage.setImage(image);
     cardPane.getChildren().add(cardImage);
     
-    //Initialize Text fields
-    title = new Text("Title");
-    voteNumberText = new Text("3");
-    voteCostText = new Text("$200");
-    rulesText = new Text("RulesText");
-    informationText = new Text("Info");
-    ArrayList<Text> textList = new ArrayList<Text>();
-    textList.addAll(Arrays.asList(title, voteNumberText, voteCostText, rulesText, informationText));
-    for(Text t : textList)
-    {
-      t.setStroke(Color.BLACK);
-      t.setStrokeType(StrokeType.OUTSIDE);
-      t.setStrokeWidth(1);
-      t.setFont(Font.font("Helvetica", 18));
-      t.setFill(Color.WHITE);
-      t.setFontSmoothingType(FontSmoothingType.LCD);
-    }
-    rulesText.setOnMouseEntered(new EventHandler<MouseEvent>() 
-    {
-      public void handle(MouseEvent me) 
-      {
-        mouseOverOctagon = true;
-      }
-    });
-    rulesText.setOnMouseExited(new EventHandler<MouseEvent>() 
-    {
-      public void handle(MouseEvent me) 
-      {
-        mouseOverOctagon = false;
-      }
-    });
-    
-    //Initialize Polygons
-    populateGameCard();
+    //Initialize Card Objects
+    updateGameCardPolygons();
+    updateGameCardText();
     updateTextOctagon();
-    ArrayList<Polygon> polygonList = new ArrayList<Polygon>();
-    polygonList.addAll(Arrays.asList(topTrapezoid, bottomTrapezoid, bottomLeftPentagon, topLeftPentagon, bottomRightPentagon, topRightPentagon, middleTextOctagon));
-    for(Polygon p : polygonList)
-    {
-      p.setStrokeType(StrokeType.INSIDE);
-      p.setStrokeWidth(2.0);
-      p.setFill(Color.web(color, transparency));
-      p.setStroke(Color.BLACK);
-      p.setOnMouseEntered(new EventHandler<MouseEvent>()
-      {
-        public void handle(MouseEvent me) 
-        {
-          p.setStroke(Color.YELLOW);
-        }
-      });
-      p.setOnMouseExited(new EventHandler<MouseEvent>()
-      {  
-        public void handle(MouseEvent me) 
-        {
-          p.setStroke(Color.BLACK);
-        }
-      });
-    }
-    middleTextOctagon.setOnMouseEntered(new EventHandler<MouseEvent>() 
-    {
-      public void handle(MouseEvent me) 
-      {
-        mouseOverOctagon = true;
-        
-        middleTextOctagon.setStroke(Color.YELLOW);
-      }
-    });
-    middleTextOctagon.setOnMouseExited(new EventHandler<MouseEvent>()
-    {  
-      public void handle(MouseEvent me) 
-      {
-        mouseOverOctagon = false;
-        middleTextOctagon.setStroke(Color.BLACK);
-      }
-    });
     
     polygonPane = new AnchorPane();
     polygonPane.getChildren().addAll(
         topLeftPentagon, topTrapezoid, topRightPentagon, middleTextOctagon,
         bottomLeftPentagon, bottomTrapezoid, bottomRightPentagon,
-        title, rulesText, voteNumberText, voteCostText, informationText
+        title, rulesText, flavorText, voteNumberText, voteCostText, informationText
         );
+    
+    switch(actionPointCost)
+    {
+      case 3: 
+        pipThree = new Circle();
+        pipThree.setRadius(cardHeight/52);
+        AnchorPane.setBottomAnchor(pipThree, cardHeight/52);
+        AnchorPane.setLeftAnchor(pipThree, cardWidth/4-cardHeight/52);
+        pipTwo = new Circle();
+        pipTwo.setRadius(cardHeight/52);
+        polygonPane.getChildren().addAll(pipTwo, pipThree);
+        AnchorPane.setBottomAnchor(pipTwo, cardHeight/52);
+        AnchorPane.setLeftAnchor(pipTwo, cardWidth*3/4-cardHeight/52);
+      case 1: 
+        pipOne = new Circle();
+        pipOne.setRadius(cardHeight/52);
+        polygonPane.getChildren().addAll(pipOne);
+        AnchorPane.setBottomAnchor(pipOne, cardHeight/52);
+        AnchorPane.setLeftAnchor(pipOne, cardWidth/2-cardHeight/52);
+        break;
+      case 2:
+        pipOne = new Circle();
+        pipOne.setRadius(cardHeight/52);
+        AnchorPane.setBottomAnchor(pipOne, cardHeight/52);
+        AnchorPane.setLeftAnchor(pipOne, cardWidth/3-cardHeight/52);
+        pipTwo = new Circle();
+        pipTwo.setRadius(cardHeight/52);
+        polygonPane.getChildren().addAll(pipTwo, pipOne);
+        AnchorPane.setBottomAnchor(pipTwo, cardHeight/52);
+        AnchorPane.setLeftAnchor(pipTwo, cardWidth*2/3-cardHeight/52);
+        break;
+    }
+    
     cardPane.getChildren().add(polygonPane);
 
     
@@ -165,7 +128,7 @@ public class GameCardView extends Application
         {
             cardWidth = newSceneWidth.doubleValue();
             cardImage.setFitWidth(cardWidth);
-            populateGameCard();
+            updateGameCardPolygons();
             updateTextOctagon();
         }
       });
@@ -175,7 +138,7 @@ public class GameCardView extends Application
         {
             cardHeight = newSceneHeight.doubleValue();
             cardImage.setFitHeight(cardHeight);
-            populateGameCard();
+            updateGameCardPolygons();
             updateTextOctagon();
         }
       });
@@ -189,8 +152,7 @@ public class GameCardView extends Application
     
     timer.start();
   }
-  
-  private void populateGameCard() 
+  private void updateGameCardPolygons() 
   {
     topTrapezoid.getPoints().setAll(new Double[] {
         (cardWidth/9),   0.0,
@@ -240,11 +202,12 @@ public class GameCardView extends Application
     AnchorPane.setBottomAnchor(bottomRightPentagon, 0.0);
     AnchorPane.setRightAnchor(bottomRightPentagon, 0.0);
 
-    topRightPentagon.getPoints().setAll(new Double[] { 
+    topRightPentagon.getPoints().setAll(
+        new Double[] { 
         0.0,            0.0, 
         -cardWidth/9,   0.0, 
         -cardWidth*2/9, cardHeight/13, -
-        cardWidth/9,   cardHeight*2/13, 
+        cardWidth/9,    cardHeight*2/13, 
         0.0,            cardHeight*2/13
         });
     AnchorPane.setTopAnchor(topRightPentagon, 0.0);
@@ -252,6 +215,119 @@ public class GameCardView extends Application
     
     middleTextOctagon.getPoints().setAll(octagonPoints);
     AnchorPane.setBottomAnchor(middleTextOctagon, (cardHeight / 13));
+    
+    
+    ArrayList<Polygon> polygonList = new ArrayList<Polygon>();
+    polygonList.addAll(Arrays.asList(topTrapezoid, bottomTrapezoid, bottomLeftPentagon, topLeftPentagon, bottomRightPentagon, topRightPentagon, middleTextOctagon));
+    for(Polygon p : polygonList)
+    {
+      p.setStrokeType(StrokeType.INSIDE);
+      p.setStrokeWidth(2.0);
+      p.setFill(Color.web(color, transparency));
+      p.setStroke(Color.BLACK);
+      p.setOnMouseEntered(new EventHandler<MouseEvent>()
+      {
+        public void handle(MouseEvent me) 
+        {
+          p.setStroke(Color.YELLOW);
+        }
+      });
+      p.setOnMouseExited(new EventHandler<MouseEvent>()
+      {  
+        public void handle(MouseEvent me) 
+        {
+          p.setStroke(Color.BLACK);
+        }
+      });
+    }
+    middleTextOctagon.setOnMouseEntered(new EventHandler<MouseEvent>() 
+    {
+      public void handle(MouseEvent me) 
+      {
+        mouseOverOctagon = true;
+        textOctagonHeightModifier = 9/13*cardHeight;
+        updateTextOctagon();
+        middleTextOctagon.setStroke(Color.YELLOW);
+      }
+    });
+    middleTextOctagon.setOnMouseExited(new EventHandler<MouseEvent>()
+    {  
+      public void handle(MouseEvent me) 
+      {
+        mouseOverOctagon = false;
+//        textOctagonHeightModifier = 0;
+        updateTextOctagon();
+        middleTextOctagon.setStroke(Color.BLACK);
+      }
+    });
+    
+   
+  }
+  private void updateGameCardText()
+  {
+  //Initialize Text fields
+    title = new Text("Clean River Incentive");
+    voteNumberText = new Text("3");
+    voteCostText = new Text("$200");
+    informationText = new Text("Info");
+    
+    ArrayList<Text> textList = new ArrayList<Text>();
+    textList.addAll(Arrays.asList(title, voteNumberText, voteCostText, informationText));
+    for(Text t : textList)
+    {
+      t.setStroke(Color.BLACK);
+      t.setStrokeType(StrokeType.OUTSIDE);
+      t.setStrokeWidth(1);
+      t.setFont(Font.font("Helvetica", 18));
+      t.setFill(Color.WHITE);
+    }
+    
+    rulesText = new Text(
+        "X% tax break for farmers in my\n"
+       +"region who reduce by 20% the\n"
+       +"outflow of pesticides and\n"
+       +"fertilizers from their\n"
+       +"farms into the rivers."
+       );
+    rulesText.setFill(Color.WHITE);
+    rulesText.setFont(Font.font(12));
+    rulesText.setOnMouseEntered(new EventHandler<MouseEvent>() 
+    {
+      public void handle(MouseEvent me) 
+      {
+        mouseOverOctagon = true;
+      }
+    });
+    rulesText.setOnMouseExited(new EventHandler<MouseEvent>() 
+    {
+      public void handle(MouseEvent me) 
+      {
+        mouseOverOctagon = false;
+      }
+    });
+    
+    flavorText = new Text(
+        "We should do something before\n"
+       +"the city council realizes that\n"
+       +"the 'Kool-Aid' actually\n"
+       +"came straight out of the tap."
+       );
+    flavorText.setFill(Color.WHITE);
+    flavorText.setFont(Font.font("Verdana", FontPosture.ITALIC, 12));
+    flavorText.setOnMouseEntered(new EventHandler<MouseEvent>() 
+    {
+      public void handle(MouseEvent me) 
+      {
+        mouseOverOctagon = true;
+      }
+    });
+    flavorText.setOnMouseExited(new EventHandler<MouseEvent>() 
+    {
+      public void handle(MouseEvent me) 
+      {
+        mouseOverOctagon = false;
+      }
+    });
     
     AnchorPane.setTopAnchor(title, cardHeight/36);
     AnchorPane.setLeftAnchor(title, cardWidth/4);
@@ -265,27 +341,40 @@ public class GameCardView extends Application
     AnchorPane.setBottomAnchor(rulesText, cardHeight*2/13+textOctagonHeightModifier);
     AnchorPane.setLeftAnchor(rulesText, cardWidth/4);
 
+    AnchorPane.setBottomAnchor(flavorText, cardHeight*2/13);
+    AnchorPane.setLeftAnchor(flavorText, cardWidth/4);
+
     AnchorPane.setBottomAnchor(informationText, cardHeight/18);
     AnchorPane.setLeftAnchor(informationText, cardWidth/18);
-   
   }
-  
+
   //Handles Animation of the Text area
   AnimationTimer timer = new AnimationTimer()
   {
-    double speed = 5;
+    double speed = cardHeight/39;
     @Override
     public void handle(long now) 
     {
-      if(mouseOverOctagon && textOctagonHeightModifier < cardHeight*9/13)
+      if(mouseOverOctagon)
       {
-        textOctagonHeightModifier+=speed;
-        updateTextOctagon();
+        if(textOctagonHeightModifier < cardHeight*3/13)
+        {
+          textOctagonHeightModifier+=speed;
+          updateTextOctagon();
+        }
+        else
+        {
+          flavorText.setVisible(true);
+        }
       }
-      else if(!mouseOverOctagon && textOctagonHeightModifier > 0)
+      else if(!mouseOverOctagon )
       {
-        textOctagonHeightModifier-=speed;
-        updateTextOctagon();
+        if( textOctagonHeightModifier > 0)
+        {
+          textOctagonHeightModifier-=speed;
+          updateTextOctagon();
+        }
+        flavorText.setVisible(false);
       }
     }
   };
@@ -305,7 +394,7 @@ public class GameCardView extends Application
         };
     middleTextOctagon.getPoints().setAll(octagonPoints);
     AnchorPane.setBottomAnchor(middleTextOctagon, (cardHeight / 13));
-    AnchorPane.setBottomAnchor(rulesText, cardHeight*2/13+textOctagonHeightModifier);
+    AnchorPane.setBottomAnchor(rulesText, cardHeight*1/13+textOctagonHeightModifier+2);
   }
   
   public static void main(String[] args) 
