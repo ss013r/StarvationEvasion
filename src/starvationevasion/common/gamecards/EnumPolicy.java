@@ -11,12 +11,12 @@ public enum EnumPolicy implements Sendable
    * more things in other areas to be implemented (like for cards that have you look through
    * your discard pile, first the ability to look at your discard needs to be implemented in).
    * 
-   * If you make the card function, then uncomment it here, as well as the switch() in GameCard's
-   * constructor. Do both please. If you don't, I'll be mildly disappointed.
+   * If you make the card function, then uncomment it here, as well as both switch() in 
+   * GameCard's constructor and actionPointCost(). If you don't, I'll be mildly disappointed.
    */ 
   Policy_CleanRiverIncentive, 
-  Policy_CovertIntelligence, 
-  Policy_DiverttheFunds, 
+  //Policy_CovertIntelligence, 
+  Policy_DivertFunds, 
   Policy_EducateTheWomenCampaign, 
   Policy_EfficientIrrigationIncentive, 
   Policy_EthanolTaxCreditChange, 
@@ -40,7 +40,7 @@ public enum EnumPolicy implements Sendable
   //Policy_Redraft, 
   Policy_ResearchInsectResistanceGrain, 
   //Policy_SearchforAnswers, 
-  //Policy_SharetheKnowledge, 
+  //Policy_SharedKnowledge, 
   Policy_SpecialInterests;
   
   public String getImagePath()

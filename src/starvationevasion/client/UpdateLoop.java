@@ -1,13 +1,14 @@
 package starvationevasion.client;
 
 import javafx.animation.AnimationTimer;
-import javafx.animation.FadeTransition;
 import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.effect.Glow;
@@ -21,18 +22,18 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import starvationevasion.client.GUI.GUI;
 import starvationevasion.client.Networking.Client;
 import starvationevasion.client.Networking.ClientTest;
-import starvationevasion.client.Setup.LandingPage;
 import starvationevasion.common.EnumRegion;
 
 /**
- * Since the AI has already been converted to use the new CommModule, this is a proof
- * of concept to show that the client can use the same module.
+ * Update loop starts up the home screen for the client. From here the user is able
+ * to launch a game and connect to a single or multiplayer. When the user clicks
+ * login, it initializes a client object and tries to connect to the
+ * selected server.
  * <p>
- * This is also a first attempt at moving the client over to a single-threaded game
+ * Moves the client over to a single-threaded game
  * loop (built on the JavaFX thread).
  */
 public class UpdateLoop extends Application

@@ -108,7 +108,6 @@ public class Simulator
     //Constant check of enum value, hand should be full so nothing happens
     for(int i = 0; i < Constant.MAX_HAND_SIZE; i++){}
       //validate cards, doesn't do anything if they are enums
-
     Boolean ex = false;
     discard(player, hand[0]);
     try
@@ -199,7 +198,9 @@ public class Simulator
   {
     LOGGER.info("Advancing Turn ...");
     ArrayList<WorldData> worldData = getWorldData();
-
+    
+    //applyCardEffectsToHand(cards);
+    
     model.nextYear(cards);
     model.nextYear(cards);
 
@@ -353,7 +354,6 @@ public class Simulator
     return null;
   }
 
-
   private ArrayList<WorldData> getWorldData ()
   {
     if (model.getCurrentYear() == Constant.FIRST_GAME_YEAR)
@@ -362,6 +362,40 @@ public class Simulator
     }
 
     return getWorldData(model.getCurrentYear()-2, model.getCurrentYear()-1);
+  }
+  
+  /**
+   * Iterates through all the cards intended to be applied to the simulator and
+   * then applies only the ones that effect a player's hand.
+   * 
+   * @param cards
+   *          The list of all cards intended to be applied to the simulation.
+   */
+  private void applyCardEffectsToHand(ArrayList<GameCard> cards)
+  {
+    for (GameCard c : cards)
+    {
+      switch(c.getCardType())
+      {
+        case Policy_DivertFunds:
+          //remove all cards from owners hand
+          discardPlayerHand(c.getOwner());
+          //give 14 million dollars to owner - applied in Model.java
+          break;
+        default:
+          break;
+      }
+    }
+  }
+  
+  private void discardPlayerHand(EnumRegion playerRegion)
+  {
+    CardDeck deck = playerDeck[playerRegion.ordinal()];
+
+    for(int i = 0; i < deck.getCardsInHand().length; i++)
+    {
+      deck.discard(deck.getCardsInHand()[i]);
+    }
   }
 
   /**
