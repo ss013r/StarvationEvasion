@@ -47,7 +47,7 @@ public class GameCardViewLocal extends Application
       (cardWidth/9),   (cardHeight/13)  +textOctagonHeightModifier, 
       (cardWidth/9),   (cardHeight/13)
       };
-  private String color = "0xaba9db";  
+  private String color = "0xaba9db";   
 
   private Polygon topTrapezoid        = new Polygon();
   private Polygon bottomTrapezoid     = new Polygon();
