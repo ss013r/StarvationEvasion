@@ -1,27 +1,37 @@
 package starvationevasion.sim;
 
-import starvationevasion.common.*;
+import javafx.scene.shape.Polygon;
+import starvationevasion.common.Constant;
+import starvationevasion.common.EnumCropZone;
+import starvationevasion.common.EnumFood;
+import starvationevasion.common.EnumRegion;
+import starvationevasion.common.MapPoint;
+import starvationevasion.common.MapProjectionMollweide;
+import starvationevasion.common.RegionData;
+import starvationevasion.common.SpecialEventData;
+import starvationevasion.common.Util;
+import starvationevasion.common.WorldData;
 import starvationevasion.common.gamecards.GameCard;
-import starvationevasion.common.gamecards.Policy_DivertFunds;
 import starvationevasion.sim.LandTile.Field;
 import starvationevasion.sim.events.AbstractEvent;
 import starvationevasion.sim.events.Drought;
+import starvationevasion.sim.events.EventDriver;
 import starvationevasion.sim.events.Hurricane;
 import starvationevasion.sim.io.GeographyXMLparser;
 import starvationevasion.sim.io.ProductionCSVLoader;
 import starvationevasion.sim.io.SpecialEventCSVLoader;
-import starvationevasion.util.Picture;
+import starvationevasion.util.JavaFX_DebugViewer;
 
-import java.awt.*;
 import java.awt.geom.Area;
-import java.awt.geom.PathIterator;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 /**
  * The Simulator class is the main API for the Server to interact with the simulator.
  * This Model class is home to the calculations supporting that API.
@@ -88,7 +98,7 @@ import java.util.logging.Logger;
 
 public class Model
 {
-  public static final int TOTAL_LAND_TILES = 245021;//167235;
+  public static final int TOTAL_LAND_TILES = 167235;
   public static double EVENT_CHANCE = 0.02;
   private static DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
 
@@ -122,6 +132,11 @@ public class Model
   // purposes.
   //
   private Region[] regionList = new Region[EnumRegion.SIZE];
+
+  /**
+   * Right now, the players control the 7 US Regions.
+   */
+  private Region[] unitedStatesRegionList = new Region[EnumRegion.US_REGIONS.length];
 
   private SeaLevel seaLevel;
 
@@ -168,7 +183,11 @@ public class Model
 
     placeCrops();
 
+    EventDriver driver = new EventDriver(this);
+
     setRegionalProduction();
+
+    populateUSRegionList();
 
     for (int i = 0; i < YEARS_OF_DATA; i++)
     {
@@ -176,7 +195,6 @@ public class Model
       if (i < Constant.FIRST_GAME_YEAR - Constant.FIRST_DATA_YEAR)
       { populateWorldData(Constant.FIRST_DATA_YEAR + i); }
     }
-
   }
 
   public void init()
@@ -339,12 +357,29 @@ public class Model
     //return null;
   }
 
+  public Region[] getRegionList()
+  {
+    return regionList;
+  }
+
 
   public GeographicArea getGeographicArea(EnumRegion regionCode)
   {
     return regionList[regionCode.ordinal()].getGeographicArea();
   }
 
+
+  public Area[] getRegionPerimetersSpherical()
+  {
+    Area[] areaList = new Area[EnumRegion.SIZE];
+
+    for (EnumRegion regionID : EnumRegion.values())
+    {
+      int i = regionID.ordinal();
+      areaList[i] = regionList[i].getGeographicArea().getPerimeter();
+    }
+    return areaList;
+  }
 
   public List<AbstractEvent> getSpecialEvents()
   {
@@ -439,25 +474,28 @@ public class Model
     //}
   }
 
-
   /**
+   * Every method is currently uncommented as not everything is currently implemented.
+   *
    * @return the simulation currentYear that has just finished.
    */
   protected int nextYear(ArrayList<GameCard> cards)
   {
     LOGGER.info("******* SIMULATION YEAR ******** " + currentYear);
 
-    //applyPolicies(); // Not started.
+    //applyPolicies(); // In progress.
 
     //updateLandUse(); // Not started.
 
-    //updatePopulation(); // Done.
+    //updatePopulation(); // In progress.
 
     //updateClimate(); // Done.
 
     //generateSpecialEvents(); // In progress (Alfred).
 
     //applySpecialEvents(); // Done.
+
+    //replantCrops();
 
     //updateFarmProductYield(); // Done.
 
@@ -478,6 +516,9 @@ public class Model
     //  printRegion(regionList[debugRegion.ordinal()], currentYear);
     //}
 
+    // updates the worlddata with all the values of this year. If none of the
+    // above methods are called, everything is 0.
+    populateWorldData(currentYear);
     currentYear++;
     return currentYear;
   }
@@ -538,6 +579,35 @@ public class Model
     return worldData[yearIdx];
   }
 
+  public CropData getCropData()
+  {
+    return this.cropData;
+  }
+
+  /**
+   * Searches the regionList for the US regions and adds them to
+   * unitedStatesRegionList[].
+   */
+  private void populateUSRegionList()
+  {
+    int it = 0;
+    ArrayList<EnumRegion> usRegions = new ArrayList<>();
+
+    for(int i = 0; i < EnumRegion.US_REGIONS.length; i++)
+    {
+      usRegions.add(EnumRegion.US_REGIONS[i]);
+    }
+
+    for(int i = 0; i < regionList.length; i++)
+    {
+      if(usRegions.contains(regionList[i].getRegionEnum()))
+      {
+        unitedStatesRegionList[it] = regionList[i];
+        it++;
+      }
+    }
+  }
+
   /**
    * Linear interpolate population.
    */
@@ -553,9 +623,22 @@ public class Model
     }
   }
 
-
   /**
-   * 
+   * Looks at each policy enacted for this turn and applies the appropriate
+   * ones.
+   *
+   * Cards not directly affecting the simulation model presumably should not be
+   * handled here. Cards like CovertIntelligence, which lets you look at another
+   * player's hand, do not directly affect the model. Right now they are handled
+   * in Simulator.NextTurn(). Since policy cards are the first thing applied in
+   * Model.nextYear(), it doesn't alter any calculations as the model completes
+   * a year's simulation.
+   *
+   * Hard-coded values are constants of the specific policy card. The card
+   * classes do not currently provide these values.
+   *
+   * Cases in switch statement with TODO: still need to be implemented.
+   *
    * @param cards
    *          the list of all cards to be applied to the model
    */
@@ -570,13 +653,128 @@ public class Model
     {
       switch(c.getCardType())
       {
+        case Policy_CleanRiverIncentive:
+          //TODO:
+          break;
         case Policy_DivertFunds:
           //remove all cards from owners hand -- done in Simulator.java
           //give 14 million dollars to owner
           getRegion(c.getOwner()).addToRevenue(14000000);
           break;
+        case Policy_EducateTheWomenCampaign:
+          //TODO:
+          break;
+        case Policy_EfficientIrrigationIncentive:
+          //TODO:
+          break;
+        case Policy_EthanolTaxCreditChange:
+          // if c.getX() == 25, user selected a 25% tax credit
+           getRegion(c.getOwner()).setEthanolProducerTaxCredit(c.getX());
+          break;
+        case Policy_FarmInfrastructureSubSaharan:
+          //TODO:
+          break;
+        case Policy_FertilizerAidCentralAsia:
+          // if c.getX()==6 send 6 million dollars in fertilizer to Central Asia
+          sendFertilizerAid(EnumRegion.CENTRAL_ASIA, c.getX());
+          break;
+        case Policy_FertilizerAidMiddleAmerica:
+          sendFertilizerAid(EnumRegion.MIDDLE_AMERICA, c.getX());
+          break;
+        case Policy_FertilizerAidOceania:
+          sendFertilizerAid(EnumRegion.OCEANIA, c.getX());
+          break;
+        case Policy_FertilizerAidSouthAsia:
+          sendFertilizerAid(EnumRegion.SOUTH_ASIA, c.getX());
+          break;
+        case Policy_FertilizerAidSubSaharan:
+          sendFertilizerAid(EnumRegion.SUB_SAHARAN, c.getX());
+          break;
+        case Policy_FertilizerSubsidy:
+          //TODO:
+          break;
+        case Policy_FoodReliefCentralAsia:
+          // Sends 5 thousand tons of selected food
+          sendFoodRelief(EnumRegion.CENTRAL_ASIA, c.getOwner(), c.getTargetFood(), 5000);
+          break;
+        case Policy_FoodReliefMiddleAmerica:
+          sendFoodRelief(EnumRegion.MIDDLE_AMERICA, c.getOwner(), c.getTargetFood(), 5000);
+          break;
+        case Policy_FoodReliefOceania:
+          sendFoodRelief(EnumRegion.OCEANIA, c.getOwner(), c.getTargetFood(), 5000);
+          break;
+        case Policy_FoodReliefSouthAsia:
+          sendFoodRelief(EnumRegion.SOUTH_ASIA, c.getOwner(), c.getTargetFood(), 5000);
+          break;
+        case Policy_FoodReliefSubSaharan:
+          sendFoodRelief(EnumRegion.SUB_SAHARAN, c.getOwner(), c.getTargetFood(), 5000);
+          break;
+        case Policy_Fundraiser:
+          getRegion(c.getOwner()).addToRevenue(1000000);
+          break;
+        case Policy_InternationalFoodRelief:
+          //TODO:
+          break;
+        case Policy_Loan:
+          //TODO:
+          break;
+        case Policy_MyPlatePromotionCampaign:
+          getRegion(c.getOwner()).subtractFromRevenue(c.getX());
+          //TODO: Apply effect of the advertising effects.
+          break;
+        case Policy_ResearchInsectResistanceGrain:
+          //TODO:
+          break;
+        case Policy_SpecialInterests:
+          //TODO:
+          break;
         default:
           break;
+      }
+    }
+  }
+
+  /**
+   * These cards are of the same type: Each US region sends fertilizer aid to a
+   * specific region.
+   *
+   * Subtract amount from each US Region, and send 7 times that amount to the
+   * specific region
+   */
+  private void sendFertilizerAid(EnumRegion region, int amount)
+  {
+    for(int i = 0; i < unitedStatesRegionList.length; i++)
+    {
+      unitedStatesRegionList[i].subtractFromRevenue(amount);
+    }
+
+    for(int i = 0; i < regionList.length; i++)
+    {
+      if(regionList[i].getRegionEnum().equals(region))
+      {
+        regionList[i].addFertilizerAid(amount*7);
+      }
+    }
+  }
+
+  /**
+   * Policy card handler. Moves x amount of y food from sender to target.
+   *
+   * @param target The region receiving the food
+   * @param sender The region sending the food
+   * @param food The type of EnumFood.
+   * @param amount The amount of tons of food being sent.
+   */
+  private void sendFoodRelief(EnumRegion target, EnumRegion sender, EnumFood food, int amount)
+  {
+    // TODO: determine where the food is coming from (from the sender). 5 thousand
+    // tons of food needs to come from somewhere, we don't just make it magically.
+
+    for(int i = 0; i < regionList.length; i++)
+    {
+      if(regionList[i].getRegionEnum().equals(target))
+      {
+        regionList[i].addFoodRelief(food,amount);
       }
     }
   }
@@ -596,7 +794,6 @@ public class Model
     }
   }
 
-
   private void updateClimate()
   {
     // Done.
@@ -612,71 +809,71 @@ public class Model
 
   private void generateSpecialEvents()
   {
-    // TODO: 12/6/2015 Alfred is working on this.
-    //
-    if (debugLevel.intValue() < Level.INFO.intValue())
-    {
-      Simulator.dbg.println("******************************************* Generating special events");
-    }
-
-    //check current currentYear.
-    int CURRENT_YEAR = 2015;
-    if (currentYear < CURRENT_YEAR)
-    {
-      //Then there should be a pre-existing event to draw upon. Then
-      //there ought to have been a process that loaded the events to draw from
-      for (SpecialEventData event : specialEventDatum)
-      {
-        if (event.year == currentYear)
-        {
-          //add current event to data structure of events for the currentYear
-        }
-      }
-    }
-    else
-    {
-      //If this is the case then examine the players behaviors. Is it probable
-      //that their region could experience an event based on the leaders actions
-      //through policy. So their current status is important:
-      //1. Are they in crisis already?
-      //2. What are their current policies?
-      //3. if in crisis will the current policies help or hurt?
-      //4. if not in crisis will the current policies improve the regions state?
-    }
-
-    // Temporary code just to make special events happen in the absence of Alfred's timeline.
-    //
-    int attempts = 5;
-    Random rand = new Random();
-    while (attempts > 0)
-    {
-      if (rand.nextFloat() < EVENT_CHANCE)
-      {
-        if (rand.nextBoolean())
-        {
-          // do a hurricane
-          Region us = regionList[EnumRegion.SIZE];
-          int idx = rand.nextInt(us.getTerritoryList().size() - 1) + 1;
-          for (Territory territory : us.getTerritoryList())
-          {
-            if (idx == 0)
-            {
-              specialEvents.add(new Hurricane(territory));
-              break;
-            }
-            idx--;
-          }
-        }
-        else
-        {
-          // do a drought
-          int idx = rand.nextInt(EnumRegion.US_REGIONS.length);
-          Region usRegion = regionList[EnumRegion.US_REGIONS[idx].ordinal()];
-          specialEvents.add(new Drought(usRegion));
-        }
-      }
-      attempts--;
-    }
+//    // TODO: 12/6/2015 Alfred is working on this.
+//    //
+//    if (debugLevel.intValue() < Level.INFO.intValue())
+//    {
+//      Simulator.dbg.println("******************************************* Generating special events");
+//    }
+//
+//    //check current currentYear.
+//    int CURRENT_YEAR = 2015;
+//    if (currentYear < CURRENT_YEAR)
+//    {
+//      //Then there should be a pre-existing event to draw upon. Then
+//      //there ought to have been a process that loaded the events to draw from
+//      for (SpecialEventData event : specialEventDatum)
+//      {
+//        if (event.year == currentYear)
+//        {
+//          //add current event to data structure of events for the currentYear
+//        }
+//      }
+//    }
+//    else
+//    {
+//      //If this is the case then examine the players behaviors. Is it probable
+//      //that their region could experience an event based on the leaders actions
+//      //through policy. So their current status is important:
+//      //1. Are they in crisis already?
+//      //2. What are their current policies?
+//      //3. if in crisis will the current policies help or hurt?
+//      //4. if not in crisis will the current policies improve the regions state?
+//    }
+//
+//    // Temporary code just to make special events happen in the absence of Alfred's timeline.
+//    //
+//    int attempts = 5;
+//    Random rand = new Random();
+//    while (attempts > 0)
+//    {
+//      if (rand.nextFloat() < EVENT_CHANCE)
+//      {
+//        if (rand.nextBoolean())
+//        {
+//          // do a hurricane
+//          Region us = regionList[EnumRegion.SIZE];
+//          int idx = rand.nextInt(us.getTerritoryList().size() - 1) + 1;
+//          for (Territory territory : us.getTerritoryList())
+//          {
+//            if (idx == 0)
+//            {
+//              specialEvents.add(new Hurricane(territory));
+//              break;
+//            }
+//            idx--;
+//          }
+//        }
+//        else
+//        {
+//          // do a drought
+//          int idx = rand.nextInt(EnumRegion.US_REGIONS.length);
+//          Region usRegion = regionList[EnumRegion.US_REGIONS[idx].ordinal()];
+//          specialEvents.add(new Drought(usRegion));
+//        }
+//      }
+//      attempts--;
+//    }
   }
 
   private void applySpecialEvents()
@@ -787,7 +984,6 @@ public class Model
       {
         regionTileList.addAll(territory.getLandTiles());
       }
-      System.out.println(regionList[i].getName() + " " + regionTileList.size() + " " + regionList[i].getLandTotal() / regionTileList.size());
       //go through the list of crops, one by one, and assign them to tiles, with
       //weighted probabilities, based on the crop ratings for each tile
       for(int j = 0; j < EnumFood.CROP_FOODS.length; j++)
@@ -837,7 +1033,7 @@ public class Model
       //do the same for non-crops
       for(int j = 0; j < EnumFood.NON_CROP_FOODS.length; j++)
       {
-
+        //right now, this is just placing crops using FIRST_DATA_YEAR. Year updates will need to be implemented.
         int numTilesForCrop = (int) regionList[i].getCropArea(Constant.FIRST_DATA_YEAR, EnumFood.NON_CROP_FOODS[j])
                 / (regionList[i].getLandTotal() / regionList[i].getNumTiles());
 
@@ -905,7 +1101,7 @@ public class Model
           // For each crop, find the EnumCropZone value
           for (int k = 0; k < EnumFood.CROP_FOODS.length; k++)
           {
-            ratings[k] = rateTileForCrop(EnumFood.CROP_FOODS[k], tile, regionList[i], dataYear);
+            ratings[k] = tile.rateTileForCrop(EnumFood.CROP_FOODS[k], regionList[i], dataYear, cropData, 1);
           }
 
           //for now, all 4 non crop foods get an ideal rating
@@ -923,251 +1119,6 @@ public class Model
         / 1000000000.0));
   }
   
-  /**
-   * Rates a given tile's suitability for a particular crop.
-   * 
-   * Currently doesn't take into account the necessary amount of rain.
-   * 
-   * @param crop
-   *          crop for which we want rating (citrus, fruit, nut, grain, oil,
-   *          veggies, special, or feed)
-   * @return EnumCropZone (IDEAL, GOOD, ACCEPTABLE, or POOR)
-   * @throws NullPointerException
-   *           if called with argument EnumFood.OTHER_CROPS, will throw an
-   *           exception because OTHER_CROPS required climate varies by country;
-   *           rating cannot be calculated using crop alone.
-   */
-  private EnumCropZone rateTileForCrop(EnumFood crop, LandTile tile, Region region, int dataYear)
-      throws NullPointerException
-  {
-    Constant.Month currentMonth;
-
-    // isAcceptable is set to true during the loop if the crop is ever found to
-    // be acceptable. We do not immediately return once finding that a tile is
-    // acceptable for a crop as we may find that a tile is also ideal at a
-    // later time.
-    boolean isAcceptable = false;
-    boolean isGood = false;
-
-    // The current running Acceptable or better grow days. The loop starts on
-    // January, and if the month is deemed ideal and/or acceptable, add the
-    // current months total days to its respective value. If February is
-    // neither ideal or acceptable, set them both back to 0. If these values
-    // ever reach the crops required grow days, we know that the tile is not
-    // poor.
-    int consecutiveAcceptableGrowDays = 0;
-    int consecutiveGoodGrowDays = 0;
-    int consecutiveIdealGrowDays = 0;
-    
-    int consecutiveAcceptableWater = 0;
-    int consecutiveGoodWater = 0;
-    int consecutiveIdealWater = 0;
-
-    // This value corresponds to the consecutive number of acceptable or ideal
-    // grow days starting from January up to the first non acceptable or ideal 
-    // month.
-    //
-    // The acceptable or ideal buffer is set to false once the first month
-    // is found that does not meet the acceptable or ideal conditions. The
-    // number of consecutive grow days is then saved to its respective
-    // consecutiveBufferValue.
-    //
-    // We do this to check if the combination of the beginning and the end
-    // of a years consecutive grow days reach an acceptable or ideal value.
-
-    boolean consecutiveAcceptableBuffer = true;
-    boolean consecutiveGoodBuffer = true;
-    boolean consecutiveIdealBuffer = true;
-    int consecutiveAcceptableBufferValue = 0;
-    int consecutiveGoodBufferValue = 0;
-    int consecutiveIdealBufferValue = 0;
-    
-    int consecutiveAcceptableWaterBuff = 0;
-    int consecutiveGoodWaterBuff = 0;
-    int consecutiveIdealWaterBuff = 0;
-
-    // these values per month
-    float tileMonthlyLowT;
-    float tileMeanDailyHighT;
-    float tileMeanDailyLowT;
-    float tileRain;
-    
-    // The crop values are the information needed from the crop to rate a tile
-    int cropIdealHigh = cropData.getData(CropData.Field.TEMPERATURE_IDEAL_HIGH, crop);
-    int cropIdealLow = cropData.getData(CropData.Field.TEMPERATURE_IDEAL_LOW, crop);
-    int cropTempMin = cropData.getData(CropData.Field.TEMPERATURE_MIN, crop);
-    int cropGrowdays = cropData.getData(CropData.Field.GROW_DAYS, crop);
-    
-    // 1000 kg/m3 is the mass density of water. Multiply the required water
-    // necessary for a crop given in units m3/ton by the mass density of water
-    // to get the required water necessary for a crop in units kg/ton.
-    float cropWaterRequired = cropData.getData(CropData.Field.WATER, crop) * 1000; //in m3/ton
-    
-    if (region.getCropArea(dataYear, crop) == 0)
-    {
-      return EnumCropZone.POOR;
-    }
-    
-    // Crop density in the given region. Mass of crop per square kilometers
-    long cropMassPerArea = region.getCropProduction(dataYear, crop) / region.getCropArea(dataYear,
-        crop);
-    
-    // Multiply these two values to get the amount of water required in units
-    // kg/km2. Divide by 1 000 000 to convert from kg/km2 to kg/m2. Now we will
-    // directly compare this value, the necessary total amount of water
-    // necessary for a crop, to the amount of water produced in a landtile's
-    // climate
-    cropWaterRequired = (cropWaterRequired * cropMassPerArea) / 1000000; // kg/m2
-    
-    for (int i = 0; i < Constant.Month.SIZE; i++)
-    { // Iterate through each month checking if suitable conditions exist for
-      // the necessary growdays
-      currentMonth = Constant.Month.values()[i];
-      tileMonthlyLowT = tile.getField(Field.TEMP_MONTHLY_LOW, dataYear, currentMonth);
-      tileMeanDailyHighT = tile.getField(Field.TEMP_MEAN_DAILY_HIGH, dataYear, currentMonth);
-      tileMeanDailyLowT = tile.getField(Field.TEMP_MEAN_DAILY_LOW, dataYear, currentMonth);
-      tileRain = tile.getField(Field.RAIN, dataYear, currentMonth); //kg/m2
-
-      if (tileMonthlyLowT < cropTempMin)
-      { // if the crops will freeze this month, tile is poor for this month
-        
-        //update buffers if necessary
-        if (consecutiveAcceptableBuffer)
-        {
-          consecutiveAcceptableBuffer = false;
-          consecutiveAcceptableBufferValue = consecutiveAcceptableGrowDays;
-          consecutiveAcceptableWaterBuff = consecutiveAcceptableWater;
-
-          if (consecutiveGoodBuffer)
-          {
-            consecutiveGoodBuffer = false;
-            consecutiveGoodBufferValue = consecutiveGoodGrowDays;
-            consecutiveGoodWaterBuff = consecutiveGoodWater;
-
-            if (consecutiveIdealBuffer)
-            {
-              consecutiveIdealBuffer = false;
-              consecutiveIdealBufferValue = consecutiveIdealGrowDays;
-              consecutiveIdealWaterBuff = consecutiveIdealWater;              
-            }
-          }
-        }
-        
-        //reset all values
-        
-        consecutiveIdealGrowDays = 0;
-        consecutiveGoodGrowDays = 0;
-        consecutiveAcceptableGrowDays = 0;
-        
-        consecutiveIdealWater = 0;
-        consecutiveGoodWater = 0;
-        consecutiveAcceptableWater = 0;
-      }
-      else //the crop will at least be acceptable/not freeze.
-      {
-        if (isBetween(tileMeanDailyLowT, cropIdealLow, cropIdealHigh) && isBetween(
-            tileMeanDailyHighT, cropIdealLow, cropIdealHigh) && !isGood)
-        { // if the tile is at least good for this crop this month
-          consecutiveGoodGrowDays += currentMonth.days();
-          consecutiveAcceptableGrowDays += currentMonth.days();
-          
-          consecutiveGoodWater += tileRain;
-          consecutiveAcceptableWater += tileRain;
-
-          if (isBetween(tileMonthlyLowT, cropIdealLow, cropIdealHigh))
-          { // if the tile is ideal for this crop this month
-            consecutiveIdealGrowDays += currentMonth.days();
-            consecutiveIdealWater += tileRain;
-          }
-          else
-          { // not ideal
-            if (consecutiveIdealBuffer)
-            {
-              consecutiveIdealBuffer = false;
-              consecutiveIdealBufferValue = consecutiveIdealGrowDays;
-              consecutiveIdealWaterBuff = consecutiveIdealWater;
-            }
-
-            consecutiveIdealGrowDays = 0;
-            consecutiveIdealWater = 0;
-          }
-        }
-        else if (!isAcceptable && !isGood) //not good, only acceptable
-        {
-          if (consecutiveGoodBuffer)
-          {
-            consecutiveGoodBuffer = false;
-            consecutiveGoodBufferValue = consecutiveGoodGrowDays;
-            consecutiveGoodWaterBuff = consecutiveGoodWater;
-          }
-
-          consecutiveGoodGrowDays = 0;
-          consecutiveGoodWater = 0;
-          
-          consecutiveAcceptableGrowDays += currentMonth.days();
-          consecutiveAcceptableWater += tileRain;
-        }
-      }
-      
-      // check if we can determine anything with new consecutiveGrowDay values
-      if (consecutiveIdealGrowDays >= cropGrowdays && consecutiveIdealWater >= cropWaterRequired)
-      { //if Ideal just return immediately.
-        return EnumCropZone.IDEAL;
-      }
-      else if (!isGood && consecutiveGoodGrowDays >= cropGrowdays
-          && consecutiveGoodWater >= cropWaterRequired)
-      { //if isGood is true this elseif never executes
-        isGood = true;
-      }
-      else if (!isGood && !isAcceptable && consecutiveAcceptableGrowDays >= cropGrowdays
-          && consecutiveAcceptableWater >= cropWaterRequired)
-      {//if isGood is true we don't care if it's acceptable.
-        isAcceptable = true;
-      }
-    }
-    
-    // At this point, the consecutiveGrowDay values are what the values are
-    // through December. If it wasn't acceptable/good/ideal in December, this
-    // value is 0. We will add this value to its respective buffer. If January
-    // wasn't acceptable/good/ideal, the respective buffer is also 0.
-
-    // Check if the beginning + the end of a year result in an ideal tile
-    // for the given crop
-    if (consecutiveIdealGrowDays + consecutiveIdealBufferValue >= cropGrowdays
-        && consecutiveIdealWater + consecutiveIdealWaterBuff >= cropWaterRequired)
-    {
-      return EnumCropZone.IDEAL;
-    }
-    // Else check if we ever had a period that was deemed Good or if the
-    // beginning + end of a year results in a Good tile for the crop
-    else if (isGood || (consecutiveGoodGrowDays + consecutiveGoodBufferValue >= cropGrowdays
-        && consecutiveGoodWater + consecutiveGoodWaterBuff >= cropWaterRequired))
-    {
-      return EnumCropZone.GOOD;
-    }
-    else if (isAcceptable || (consecutiveAcceptableGrowDays
-        + consecutiveAcceptableBufferValue >= cropGrowdays && consecutiveAcceptableWater
-            + consecutiveAcceptableWaterBuff >= cropWaterRequired))
-    {
-      return EnumCropZone.ACCEPTABLE;
-    }
-    else
-    { // If it's not Ideal/Good/Acceptable, it's poor.
-      return EnumCropZone.POOR;
-    }
-  }
-
-  private boolean isBetween(Number numToTest, Number lowVal, Number highVal)
-  {
-    if (numToTest.doubleValue() >= lowVal.doubleValue() && numToTest.doubleValue() <= highVal.doubleValue())
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }
 
   private void loadExistingSpecialEvents()
   {
@@ -1325,86 +1276,100 @@ public class Model
   {
     for(Region region: regionList)
     {
-      region.setTotalProduction(cropData);
+      for(Territory territory: region.getTerritoryList())
+      {
+        for(LandTile tile: territory.getLandTiles())
+        {
+          int production = calculateTileProduction(region, tile);
+          tile.setCurrentProduction(production);
+          int cost = calculateTileCost(region, tile.getCrop());
+          tile.setCurrentCost(cost);
+        }
+      }
+      region.setTotalProduction();
     }
   }
 
-  /**
-   * This method is used only for testing the geographic boundaries.<br>
-   * It displays a javax.swing.JFrame containing a Mollweide projection of the
-   * world to be drawn on using drawBoundary(Picture pic, Territory territory);
-   *
-   * @return reference to the created JFrame.
-   */
-  public Picture testShowMapProjection()
+  private int calculateTileProduction(Region region, LandTile tile)
   {
-    return new Picture("assets/WorldMap_MollweideProjection.png");
+    return calculateTileProduction(region, tile, tile.getCrop());
   }
 
-  /**
-   * This method is used only for testing the geographic boundaries.<br>
-   * Given a Picture frame containing a Mollweide would map projection and a territory,
-   * it draws the boundary of that territory on the map using different colors for
-   * disconnected segments (islands) of the territory.
-   */
-  public void drawBoundary(Picture pic, Territory territory, Color color, int thickness)
+
+
+  private int calculateTileProduction(Region region, LandTile tile, EnumFood crop)
   {
-    MapProjectionMollweide map = new MapProjectionMollweide(pic.getImageWidth(), pic.getImageHeight());
-    //map.setCentralMeridian(-83);
-    Point pixel = new Point();
 
-    Graphics2D gfx = pic.getOffScreenGraphics();
-    gfx.setStroke(new BasicStroke(thickness));
+    if(crop == null) return 0;
 
+    //total production of tile in USD:
+    // (crop rating) * (metric tons yield  / sq km) * (area of land tile in sq km) * (USD food price  / metric ton)
 
-    GeographicArea geographicArea = territory.getGeographicArea();
-    Area boundary = geographicArea.getPerimeter();
-
-    gfx.setColor(color);
-    int lastX = Integer.MAX_VALUE;
-    int lastY = Integer.MAX_VALUE;
-    int startX = Integer.MAX_VALUE;
-    int startY = Integer.MAX_VALUE;
-
-    double[] coords = new double[6];
+    double production_per_km = region.getCropProduction(2009, crop) / region.getCropArea(2009, crop);
+    double tileSize = region.getLandTotal() / region.getNumTiles() ;
+    int index = crop.ordinal();
+    int revenue = (int) (tile.getCropRatings()[index].productionRate() * cropData.getPrice(2009,
+        EnumFood.values()[index]) * tileSize * production_per_km);
+    return revenue;
+  }
 
 
-    PathIterator path = boundary.getPathIterator(null);
-    while(!path.isDone())
+  private int calculateTileCost(Region region, EnumFood crop)
+  {
+    if(crop == null) return 0;
+
+    //total cost of tile in USD:
+    // (metric tons yield  / sq km) * (area of land tile in sq km) * (pesticide cost + water cost + seed cost)
+
+    double production_per_km = region.getCropProduction(2009, crop) / region.getCropArea(2009, crop);
+    double tileSize = region.getLandTotal() / region.getNumTiles() ;
+    int cost = (int)( tileSize *  production_per_km *
+        ( cropData.getData(CropData.Field.PESTICIDE_COST,crop) +
+            cropData.getData(CropData.Field.WATER_COST, crop) +
+            cropData.getData(CropData.Field.SEED_COST, crop)) );
+
+    return cost;
+  }
+
+
+
+  /**
+   * This method is to be called at the end of a year.
+   * For each landTile, farmer decides whether or not to replant same crop
+   */
+  private void replantCrops()
+  {
+    for(Region region: regionList)
     {
-        int type = path.currentSegment(coords);
-        path.next();
-        //map.setPoint(pixel, mapPoint.latitude, mapPoint.longitude);
-        //System.out.println("("+coords[1]+", "+ coords[0]+")");
-        map.setPoint(pixel, coords[1], coords[0]);
-        if (type == PathIterator.SEG_LINETO)
+      region.resetProduction();
+      for (Territory territory : territoryList)
+      {
+        for (LandTile tile : territory.getLandTiles())
         {
-          gfx.drawLine(lastX, lastY, pixel.x, pixel.y);
+          for(EnumFood crop: EnumFood.ALL_FOODS)
+          {
+            int newCost =  calculateTileCost(region, crop);
+            int production = (int)(.8 * calculateTileProduction(region, tile,crop));
+            //proposed production is cut to 80% to account for cost of replanting
+            int net = production - newCost;
+            if(net > (tile.getCurrentProduction() - tile.getCurrentCost()))
+            {
+              tile.setCrop(crop);
+              tile.setCurrentProduction(production);
+              tile.setCurrentCost(newCost);
+              break;
+            }
+          }
         }
-        else if(type == PathIterator.SEG_MOVETO)
-        {
-          startX = pixel.x;
-          startY = pixel.y;
-        }
-        else if(type == PathIterator.SEG_CLOSE)
-        {
-          gfx.drawLine(lastX, lastY, startX, startY);
-        }
-        else
-        {
-          System.out.println("************ ERROR ***********");
-        }
-
-        lastX = pixel.x;
-        lastY = pixel.y;
+      }
+      region.setTotalProduction();
     }
-    pic.repaint();
-
   }
 
 
 
 
+/*
 
   public void drawAllTiles(Picture pic, Region region, Color color)
   {
@@ -1463,7 +1428,7 @@ public class Model
     pic.repaint();
 
   }
-
+*/
 
   /**
    * Testing entry point. This creates an instance of the model which, among other things,
@@ -1478,80 +1443,69 @@ public class Model
     System.out.println("      Running Test entry point: starvationevasion.sim.Model()");
     System.out.println("==========================================================================");
 
+
+
+    String[] imagePath = {"BlankBlue_MollweideProjection-1280x641.png"};
+
+    class GUIThread extends Thread
+    {
+      GUIThread()
+      {
+      }
+      public void run()
+      {
+        JavaFX_DebugViewer.main(imagePath);
+      }
+    }
+
+    GUIThread gui = new GUIThread();
+    gui.start();
+
     Model model = new Model();
 
-    Picture pic = model.testShowMapProjection();
-    //Graphics2D gfx = pic.getOffScreenGraphics();
-    //gfx.setColor(Color.BLACK);
-    //gfx.fillRect(0,0,pic.getImageWidth(), pic.getImageHeight());
-    Territory territory;
+    JavaFX_DebugViewer pic = JavaFX_DebugViewer.me;
+    MapProjectionMollweide map = new MapProjectionMollweide(pic.getImageWidth(), pic.getImageHeight());
 
-   //territory = model.getTerritory("US-Utah");
-   //model.drawBoundary(pic, territory, Color.GREEN, 1);
+    System.out.println("Model.main image size= "+pic.getImageWidth() + ", "+ pic.getImageHeight());
+    map.setCentralMeridian(0);
+    map.setRegionPerimetersSpherical(model.getRegionPerimetersSpherical());
 
-   //territory = model.getTerritory("US-Nevada");
-   //model.drawBoundary(pic, territory, Color.BLUE, 1);
+    System.out.println("model.getRegionPerimetersSpherical().length = " + model.getRegionPerimetersSpherical().length);
 
-    /*
-   territory = model.getTerritory("Congo (Brazzaville)");
-   model.drawBoundary(pic, territory, Color.MAGENTA, 1);
-   Region region = model.getRegion(EnumRegion.SUB_SAHARAN);
-   model.drawBoundary(pic, region, Util.brighten(EnumRegion.SUB_SAHARAN.getColor(), 0.5), 3);
-*/
-    //Region region = model.getRegion(EnumRegion.OCEANIA);
-    //model.drawBoundary(pic, region, Color.WHITE);
+    Polygon drawArea = map.getPerimeterDrawable(EnumRegion.SUB_SAHARAN);
+    drawArea.setStroke(Util.brighten(EnumRegion.SUB_SAHARAN.getColor(), 0.5));
+    pic.add(drawArea);
+    //for (EnumRegion regionID : EnumRegion.values())
+    //{
+    //  Polygon drawArea = map.getPerimeterDrawable(regionID);
+    //  pic.add(drawArea, Util.brighten(regionID.getColor(), 0.5));
+    //}
 
-    //Territory territory = model.getTerritory("Tunisia");
-    //model.drawBoundary(pic, territory, Color.RED);
+
 /*
-    Territory territory = model.getTerritory("Ethiopia");
-    model.drawBoundaryUsingMapPoints(pic, territory);
-    territory = model.getTerritory("Kenya");
-    model.drawBoundaryUsingMapPoints(pic, territory);
-    territory = model.getTerritory("Tanzania");
-    model.drawBoundaryUsingMapPoints(pic, territory);
-    territory = model.getTerritory("Somalia");
-    model.drawBoundaryUsingMapPoints(pic, territory);
-    territory = model.getTerritory("Sudan");
-    model.drawBoundaryUsingMapPoints(pic, territory);
-    Region region = model.getRegion(EnumRegion.SUB_SAHARAN);
-    model.drawBoundary(pic, region, Util.brighten(Color.MAGENTA, 0.5));
-    region = model.getRegion(EnumRegion.MIDDLE_EAST);
-    model.drawBoundary(pic, region, Util.brighten(EnumRegion.MIDDLE_EAST.getColor(), 0.5));
-    //territory = model.getTerritory("Mauritania");
-    //model.drawBoundary(pic, territory, Color.WHITE);
-    //territory = model.getTerritory("Algeria");
-    //model.drawBoundary(pic, territory, Color.GREEN);
-    //territory = model.getTerritory("Mexico");
-    //model.drawBoundary(pic, territory, Color.RED);
-    */
-
-    for (int n = 0; n < 10; n++)
+    for (int n = -180; n < 180; n+=1)
     {
-
+      gfx.drawImage(background,0,0,null);
+      map.setCentralMeridian(n);
       for (EnumRegion regionID : EnumRegion.values())
       {
-        Region region = model.getRegion(regionID);
-        model.drawAllTiles(pic, region, regionID.getColor());
-      }
+        Area drawArea = map.getPerimeterDrawable(regionID);
+        gfx.setColor(Util.brighten(regionID.getColor(), 0.5));
 
-      for (EnumRegion regionID : EnumRegion.values())
-      {
-        Region region = model.getRegion(regionID);
-        model.drawBoundary(pic, region, Util.brighten(regionID.getColor(), 0.5), 1);
+        gfx.draw(drawArea);
       }
       pic.repaint();
 
-
       try
       {
-        Thread.sleep(3000);
+        Thread.sleep(10);
       } catch (InterruptedException e) { }
 
-      for (Constant.Month month : Constant.Month.values())
-      {
-        model.drawRain(pic, 2000+n, month);
-      }
+      //for (Constant.Month month : Constant.Month.values())
+      //{
+      //  model.drawRain(pic, 2000+n, month);
+      //}
     }
+    */
   }
 }

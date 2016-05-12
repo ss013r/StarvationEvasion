@@ -1,16 +1,33 @@
 package starvationevasion.sim;
 
-
-import starvationevasion.common.*;
+import starvationevasion.common.Constant;
+import starvationevasion.common.EnumFood;
+import starvationevasion.common.EnumRegion;
+import starvationevasion.common.MapPoint;
+import starvationevasion.common.RegionData;
+import starvationevasion.common.WorldData;
 import starvationevasion.common.gamecards.EnumPolicy;
 import starvationevasion.common.gamecards.GameCard;
 import starvationevasion.sim.events.AbstractEvent;
 
-import java.io.*;
+import java.awt.geom.Area;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.*;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+
 
 /**
  * This is the main API point of the Starvation Evasion Simulator.<br>
@@ -93,7 +110,8 @@ public class Simulator
           }
         }
         assert ((totalFarmArea < region.landArea) && (totalFarmArea >= 0));
-      } //Check that WorldData is properly instantiated
+      }
+      //Check that WorldData is properly instantiated
       //for (int i = 0; i < EnumFood.SIZE; i++)
       //{
       //  assert (world.foodPrice[i] > 0);
@@ -108,6 +126,7 @@ public class Simulator
     //Constant check of enum value, hand should be full so nothing happens
     for(int i = 0; i < Constant.MAX_HAND_SIZE; i++){}
       //validate cards, doesn't do anything if they are enums
+
     Boolean ex = false;
     discard(player, hand[0]);
     try
@@ -155,16 +174,23 @@ public class Simulator
     return dataList;
   }
 
-  public  GeographicArea[] getRegionBoundaries()
-  {
-    GeographicArea[] boundaryList = new GeographicArea[EnumRegion.SIZE];
 
-    for (EnumRegion region : EnumRegion.values())
-    {
-      boundaryList[region.ordinal()] = model.getGeographicArea(region);
-    }
-    return boundaryList;
+  public  Area[] getRegionBoundaries()
+  {
+    return model.getRegionPerimetersSpherical();
   }
+
+  /**
+   * This data should be sent over the server to every client once they connect
+   * as this will be important for them to have. It should only be sent once.
+   *
+   * @return packed tile data that was built during the model's initialization
+   */
+  public PackedTileData getPackedTileData()
+  {
+    return model.getPackedTileData();
+  }
+
 
 
 
@@ -199,7 +225,8 @@ public class Simulator
     LOGGER.info("Advancing Turn ...");
     ArrayList<WorldData> worldData = getWorldData();
     
-    //applyCardEffectsToHand(cards);
+    // uncomment to apply effects of cards not directly altering sim model
+    // applyCardEffectsToHand(cards);
     
     model.nextYear(cards);
     model.nextYear(cards);
@@ -366,7 +393,10 @@ public class Simulator
   
   /**
    * Iterates through all the cards intended to be applied to the simulator and
-   * then applies only the ones that effect a player's hand.
+   * then applies only the ones that do not directly affect the simulation model.
+   * 
+   * For example, effects like CovertIntelligence, which lets you look at another
+   * player's hand, do not directly affect the model.
    * 
    * @param cards
    *          The list of all cards intended to be applied to the simulation.
@@ -377,10 +407,16 @@ public class Simulator
     {
       switch(c.getCardType())
       {
+//        case Policy_CovertIntelligence: //removed my policy card team?
+//          // TODO: talk to ClientUI to allow player to determine who's hand to
+//          // look at. Provide ClientUI the appropriate hand from playerDeck.
+//          break;
         case Policy_DivertFunds:
-          //remove all cards from owners hand
+          // remove all cards from owners hand
           discardPlayerHand(c.getOwner());
-          //give 14 million dollars to owner - applied in Model.java
+          // give 14 million dollars to owner - applied in Model.java
+          // TODO: potentially talk to ClientUI to make cool animation of card
+          // discarding.
           break;
         default:
           break;
@@ -396,6 +432,12 @@ public class Simulator
     {
       deck.discard(deck.getCardsInHand()[i]);
     }
+  }
+
+  public Area getPerimeter(EnumRegion regionID)
+  {
+    Region region = model.getRegion(regionID);
+    return region.getGeographicArea().getPerimeter();
   }
 
   /**
@@ -458,16 +500,15 @@ public class Simulator
       startingHandMsg += '\n';
     }
 
-    ArrayList<WorldData> worldDataList = sim.getWorldData(Constant.FIRST_DATA_YEAR, Constant.FIRST_GAME_YEAR-1);
+    ArrayList<GameCard> policiesEnactedThisTurnByAllPlayers = new ArrayList<>();
+    sim.nextTurn(policiesEnactedThisTurnByAllPlayers);
+
+    ArrayList<WorldData> worldDataList = sim.getWorldData(Constant.FIRST_DATA_YEAR, Constant.FIRST_GAME_YEAR);
     for (WorldData data : worldDataList)
     {
       LOGGER.info("==================================================\n"+data.toString()+"\n");
     }
     LOGGER.info(startingHandMsg);
-
-    ArrayList<GameCard> policiesEnactedThisTurnByAllPlayers = new ArrayList<>();
-    sim.nextTurn(policiesEnactedThisTurnByAllPlayers);
-
 
     try
     {

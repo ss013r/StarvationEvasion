@@ -10,9 +10,23 @@ import starvationevasion.common.WorldData;
 import starvationevasion.common.gamecards.EnumPolicy;
 import starvationevasion.common.gamecards.GameCard;
 import starvationevasion.communication.Communication;
-import starvationevasion.server.model.*;
+import starvationevasion.server.model.Endpoint;
+import starvationevasion.server.model.Payload;
+import starvationevasion.server.model.Request;
+import starvationevasion.server.model.RequestFactory;
+import starvationevasion.server.model.Response;
+import starvationevasion.server.model.State;
+import starvationevasion.server.model.Type;
+import starvationevasion.server.model.User;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -415,7 +429,7 @@ public class DeprecatedClient implements Client
     {
       gui.setAssignedRegion(region);
       gui.setCardsInHand(getHand());
-      Platform.runLater(() -> gui.getDraftLayout().getHand().setHand(getHand().toArray(new EnumPolicy[hand.size()])));
+      Platform.runLater(() -> gui.getDraftLayout().getHand().setPolicies(getHand().toArray(new EnumPolicy[hand.size()])));
     }
   }
   public void shutdown()
@@ -549,7 +563,7 @@ public class DeprecatedClient implements Client
           ArrayList arrayList=(ArrayList)response.getPayload().getData();
           System.out.println(arrayList);
           votingCards=(ArrayList) response.getPayload().getData();
-          Platform.runLater(() -> gui.getVotingLayout().updateCardSpaces(votingCards));
+          Platform.runLater(() -> gui.getVotingLayout().getVotingHand().setVotingCards(votingCards));
         }
         else if(response.getPayload().get("data")instanceof ArrayList)
         {

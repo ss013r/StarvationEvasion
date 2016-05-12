@@ -19,9 +19,7 @@ public class CropData
     price2009, // int: Price (2009 US import price, Dollars per Metric Ton)
     water,     // int: Water (Cubic meters per Metric Ton)
     energy,    // not implemented yet.
-    fertilizerN,    // not implemented yet.
-    fertilizerP2O5, // not implemented yet.
-    fertilizerK2O,  // not implemented yet.
+    fertilizerCost,    // dollars/kg.
     growDays,       //Growing Period (days/year)
     temperatureMin,        //Temperature Min (Deg C). Crops die if temperature drops below this within its growing period.
     temperatureIdealLow,  // Temperature Ideal Low (Deg C). Crops have max productivity if all days are within this range.
@@ -34,16 +32,14 @@ public class CropData
   {
     WATER,     // int: Water (Cubic meters per Metric Ton)
     ENERGY,    // not implemented yet.
-    FERTILIZER_N,    // not implemented yet.
-    FERTILIZER_P2O5, // not implemented yet.
-    FERTILIZER_K2O,  // not implemented yet.
+    FERTILIZER_COST,    // dollars/kg.
     GROW_DAYS,       //Growing Period (days/year)
     TEMPERATURE_MIN,        //Temperature Min (Deg C). Crops die if temperature drops below this within its growing period.
     TEMPERATURE_IDEAL_LOW,  // Temperature Ideal Low (Deg C). Crops have max productivity if all days are within this range.
     TEMPERATURE_IDEAL_HIGH, // Temperature Ideal High (Deg C). Crops have max productivity if all days are within this range.
-    SEED_COST,              // Cost of seed for this crop. Made up for now.
-    PESTICIDE_COST,         // Cost of pesticides for this crop. Made up for now.
-    WATER_COST;             // Cost of water for this crop. Made up for now.
+    SEED_COST,              // Cost of seed for this crop per metric ton produced. Made up for now.
+    PESTICIDE_COST,         // Cost of pesticides for this crop per metric ton produced. Made up for now.
+    WATER_COST;             // Cost of water for this crop per sq metric ton produced. Made up for now.
     public static final int SIZE = values().length;
   }
 
@@ -65,7 +61,7 @@ public class CropData
       {
         LOGGER.severe("**ERROR** Reading " + PATH_CROPDATA +
           ": Expected header[" + i + "]=" + header + ", Found: " + fieldList[i]);
-        return;
+        System.exit(1);
       }
     }
     fileReader.trashRecord();
@@ -95,12 +91,8 @@ public class CropData
             data[Field.WATER.ordinal()][foodIdx] = value; break;
           case energy:
             data[Field.ENERGY.ordinal()][foodIdx] = value; break;
-          case fertilizerN:
-            data[Field.FERTILIZER_N.ordinal()][foodIdx] = value; break;
-          case fertilizerP2O5:
-            data[Field.FERTILIZER_P2O5.ordinal()][foodIdx] = value; break;
-          case fertilizerK2O:
-            data[Field.FERTILIZER_K2O.ordinal()][foodIdx] = value; break;
+          case fertilizerCost:
+            data[Field.FERTILIZER_COST.ordinal()][foodIdx] = value; break;
           case growDays:
             data[Field.GROW_DAYS.ordinal()][foodIdx] = value; break;
           case temperatureMin:
@@ -115,15 +107,17 @@ public class CropData
       //add a seed,water, and pesticide cost for each food group
       for(int i = 0; i < EnumFood.SIZE; i++)
       {
-        data[Field.SEED_COST.ordinal()][i] = 100;
-        data[Field.PESTICIDE_COST.ordinal()][i] = 100;
-        data[Field.WATER_COST.ordinal()][i] = 100;
+        //costs set to be 20 % of price per metric ton when summed
+        double totalCost = foodPrice[Model.YEARS_OF_DATA-1][EnumFood.values()[i].ordinal()] / 5;
+        data[Field.SEED_COST.ordinal()][i] = (int)(totalCost / 3 );
+        data[Field.PESTICIDE_COST.ordinal()][i] = (int)(totalCost / 3 );
+        data[Field.WATER_COST.ordinal()][i] = (int)(totalCost / 3 );
       }
 
       for (int yearIdx=1; yearIdx<9; yearIdx++)
       {
         foodPrice[yearIdx][foodIdx] =
-          (int) Util.linearInterpolate(0, yearIdx, 9, foodPrice[0][foodIdx], foodPrice[9][foodIdx]);
+            (int) Util.linearInterpolate(0, yearIdx, 9, foodPrice[0][foodIdx], foodPrice[9][foodIdx]);
       }
     }
     fileReader.close();
